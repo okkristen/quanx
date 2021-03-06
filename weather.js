@@ -8,8 +8,8 @@ const City = encodeURIComponent($.getdata('city') || "杭州市萧山区") //可
 const j = $.getdata('citynum') || "1";
 let reduction = $.getdata('cut') || 'false'; //日志
 let daylys = $.getdata('day_desc') || 'true', //每日天气
-	hourlys = $.getdata('hour_desc') || 'false', //小时预报
-	indexs = $.getdata('index_desc') || 'false'; //生活指数
+hourlys = $.getdata('hour_desc') || 'false', //小时预报
+indexs = $.getdata('index_desc') || 'false'; //生活指数
 fortys = $.getdata('forty_desc') || 'false'; //40天预告
 let Alerts = "";
 
@@ -31,7 +31,6 @@ function Weather() {
 		$.get(weatherurl, (error, response, data) => {
 			try {
 				$.weather = JSON.parse(data);
-				console.info($.weather)
 			} catch (e) {
 				$.logErr(e, resp);
 			} finally {
