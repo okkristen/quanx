@@ -2,9 +2,10 @@
 支持boxjs手动修改位置，可直接输入中文地区名
 更新时间 2021-03-02 10:26
 */
-const $ = new Env('墨迹天气');
+const $ = new Env('基金');
 const notify = $.isNode() ? require('./sendNotify') : '';
-const City = encodeURIComponent($.getdata('city') || "杭州市萧山区") //可在此处修改城市
+let msgs = [];
+const City = encodeURIComponent($.getdata('city') || "北京") //可在此处修改城市
 const j = $.getdata('citynum') || "1";
 let reduction = $.getdata('cut') || 'false'; //日志
 let daylys = $.getdata('day_desc') || 'true', //每日天气
@@ -14,14 +15,135 @@ fortys = $.getdata('forty_desc') || 'false'; //40天预告
 let Alerts = "";
 
 !(async () => {
-	await SearchCity();
-	await fortyReport();
-	await Weather();
-	await TodayReport();
-	await showmsg()
+	await bonds();
+	await sendMsg();
+	// await SearchCity();
+	// await fortyReport();
+	// await Weather();
+	// await TodayReport();
+	// await showmsg()
 })()
 .catch((e) => $.logErr(e))
 	.finally(() => $.done())
+
+
+function getURL() {
+	// var URL  = 'http://57.push2.eastmoney.com/api/qt/clist/get?pn=1&pz=50&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f243&fs=b:MK0354&fields=f1,f152,f2,f3,f12,f13,f14,f227,f228,f229,f230,f231,f232,f233,f234,f235,f236,f237,f238,f239,f240,f241,f242,f26,f243&_=1615020528285'
+	 var URL  = 'http://57.push2.eastmoney.com/api/qt/clist/get?'
+	var URLARR = [];
+	URLARR.push('pn=1')
+	URLARR.push('pz=50')
+	URLARR.push('po=1')
+	URLARR.push('np=1')
+	URLARR.push('ut=bd1d9ddb04089700cf9c27f6f7426281')
+	URLARR.push('fltt=2')
+	URLARR.push('invt=2')
+	URLARR.push('fid=f243')
+	URLARR.push('fs=b:MK0354')
+	URLARR.push('fields=f1,f152,f2,f3,f12,f13,f14,f227,f228,f229,f230,f231,f232,f233,f234,f235,f236,f237,f238,f239,f240,f241,f242,f26,f243')
+	URLARR.push('_=1615020528285')
+	URL += URLARR.join('&')
+	return URL;
+}
+/**
+ * 可转债
+ */
+function bonds() {
+	return new Promise((resolve, reject) => {
+		let param = {
+			url: getURL()
+		}
+		$.get(param, (error, response, data) => {
+			try {
+				$.bonds = JSON.parse(data);
+				fomart($.bonds.data.diff)
+			} catch (e) {
+				$.logErr(e, resp);
+			} finally {
+				resolve()
+			}
+		})
+	})
+}
+
+/**
+ * @param {Object} bond 转债列表
+ */
+function fomart (bonds) {
+	var bondTitles = []
+	// bondTitles.push({title: '序号', value: ''})
+	bondTitles.push({title: '转债代码', value: 'f12'})
+	bondTitles.push({title: '转债名称', value: 'f14'})
+	// bondTitles.push({title: '最新价', value: 'f2'})
+	// bondTitles.push({title: '涨跌幅', value: 'f3'})
+	// bondTitles.push({title: '相关链接', value: ''})
+	// bondTitles.push({title: '正股代码', value: 'f232'})
+	// bondTitles.push({title: '正股名称', value: 'f234'})
+	// bondTitles.push({title: '最新价', value: 'f229'})
+	// bondTitles.push({title: '涨跌幅', value: 'f230'})
+	// bondTitles.push({title: '转股价', value: 'f235'})
+	// bondTitles.push({title: '转股价值', value: 'f236'})
+	// bondTitles.push({title: '转股溢价率', value: 'f237'})
+	// bondTitles.push({title: '纯债溢价率', value: 'f238'})
+	// bondTitles.push({title: '回售触发价', value: 'f239'})
+	// bondTitles.push({title: '强赎触发价', value: 'f240'})
+	// bondTitles.push({title: '到期赎回价', value: 'f241'})
+	// bondTitles.push({title: '纯债价值', value: 'f227'})
+	// bondTitles.push({title: '开始转股日', value: 'f242'})
+	bondTitles.push({title: '上市日期', value: 'f26'})
+	bondTitles.push({title: '申购日期', value: 'f243'})
+	var titles = []
+	for (var i = 0; i < bondTitles.length; i++) {
+		var bondTitle  = bondTitles[i]
+		titles.push(bondTitle.title)
+	}
+	console.log(titles.join('||'))
+	msgs.push(titles.join('||'))
+	for (var i = 0; i < bonds.length; i++) {
+		var bond  = bonds[i];
+		if(bond['f243'] < now&&bond['f26'] < now) {
+			continue;
+		}
+		var data = []
+		//  上市日期或者 申购日期 大于现在时间
+		var now = dateFormat("YYYYmmdd", new Date())
+		for (var j = 0; j < bondTitles.length; j++) {
+			var bondTitle  = bondTitles[j]
+			data.push(bond[bondTitle.value])
+		}
+		msgs.push(data.join('||||'))
+		console.log(data.join('||||'))
+	}
+}
+
+function sendMsg() {
+	let msg = ""
+	for (var i = 0; i < msgs.length; i++) {
+		msg += msgs[i] + "\n "
+	}
+	$.msg('转债','上市或申购转债时间', msg)
+}
+
+
+function dateFormat(fmt, date) {
+    let ret;
+    const opt = {
+        "Y+": date.getFullYear().toString(),        // 年
+        "m+": (date.getMonth() + 1).toString(),     // 月
+        "d+": date.getDate().toString(),            // 日
+        "H+": date.getHours().toString(),           // 时
+        "M+": date.getMinutes().toString(),         // 分
+        "S+": date.getSeconds().toString()          // 秒
+        // 有其他格式化字符需求可以继续添加，必须转化成字符串
+    };
+    for (let k in opt) {
+        ret = new RegExp("(" + k + ")").exec(fmt);
+        if (ret) {
+            fmt = fmt.replace(ret[1], (ret[1].length == 1) ? (opt[k]) : (opt[k].padStart(ret[1].length, "0")))
+        };
+    };
+    return fmt;
+} 
 
 function Weather() {
 	return new Promise((resolve, reject) => {
@@ -31,7 +153,6 @@ function Weather() {
 		$.get(weatherurl, (error, response, data) => {
 			try {
 				$.weather = JSON.parse(data);
-				console.info($.weather)
 			} catch (e) {
 				$.logErr(e, resp);
 			} finally {
@@ -298,14 +419,16 @@ async function showmsg() {
 		$.desc += "【40天预告】\n  " + forDay40 + temp40
 	}
 	$.sub = "【今日天气】" + `${mapSkycon(nowweather)[0]}`
-	$.msg($.weather.data.city + "天气预报 " +
-	 $.weather.data.forecast_day[0].predict_date + 
-	 $.weather.data.forecast_day[0].predict_week +
-		" " + Festival, 
-		$.sub,
-		 $.desc, {
+	$.msg($.weather.data.city + "天气预报 " + $.weather.data.forecast_day[0].predict_date + $.weather.data.forecast_day[0].predict_week +
+		" " + Festival, $.sub, $.desc, {
 			"media-url": `${mapSkycon(nowweather)[1]}`
 		})
+		
+		
+		
+		
+		
+		
 	if ($.isNode()) {
 		await notify.sendNotify($.weather.data.city + "天气预报 " + $.weather.data.forecast_day[0].predict_date + $.weather.data
 			.forecast_day[0].predict_week + " " + Festival, $.sub + "\n" + $.desc)
