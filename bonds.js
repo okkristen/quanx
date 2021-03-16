@@ -5,6 +5,7 @@
 const $ = new Env('基金');
 const notify = $.isNode() ? require('./sendNotify') : '';
 let msgs = [];
+let titleMsgs = [];
 const City = encodeURIComponent($.getdata('city') || "北京") //可在此处修改城市
 const j = $.getdata('citynum') || "1";
 let reduction = $.getdata('cut') || 'false'; //日志
@@ -40,9 +41,15 @@ function getURL() {
 	URLARR.push('invt=2')
 	URLARR.push('fid=f243')
 	URLARR.push('fs=b:MK0354')
-	URLARR.push('fields=f1,f152,f2,f3,f12,f13,f14,f227,f228,f229,f230,f231,f232,f233,f234,f235,f236,f237,f238,f239,f240,f241,f242,f26,f243')
+	var fields = ['fields=f1'];
+	for (var i = 1; i < 300; i++) {
+		fields.push('f' + i);
+	}
+	URLARR.push(fields.join(','))
+	// URLARR.push('fields=f1,f152,f2,f3,f12,f13,f14,f227,f228,f229,f230,f231,f232,f233,f234,f235,f236,f237,f238,f239,f240,f241,f242,f26,f243')
 	URLARR.push('_=1615020528285')
 	URL += URLARR.join('&')
+	// console.log(URL)
 	return URL;
 }
 /**
@@ -74,7 +81,7 @@ function fomart (bonds) {
 	// bondTitles.push({title: '序号', value: ''})
 	bondTitles.push({title: '转债代码', value: 'f12'})
 	bondTitles.push({title: '转债名称', value: 'f14'})
-	// bondTitles.push({title: '最新价', value: 'f2'})
+	bondTitles.push({title: '最新价', value: 'f2'})
 	// bondTitles.push({title: '涨跌幅', value: 'f3'})
 	// bondTitles.push({title: '相关链接', value: ''})
 	// bondTitles.push({title: '正股代码', value: 'f232'})
@@ -97,23 +104,46 @@ function fomart (bonds) {
 		var bondTitle  = bondTitles[i]
 		titles.push(bondTitle.title)
 	}
+	var  today = ['今日可申购可转债'];
 	console.log(titles.join('||'))
-	msgs.push(titles.join('||'))
+	//  上市日期或者 申购日期 大于现在时间
+	var now = dateFormat("YYYYmmdd", new Date())
+	var balance = []
 	for (var i = 0; i < bonds.length; i++) {
 		var bond  = bonds[i];
-		if(bond['f243'] < now&&bond['f26'] < now) {
+		// 差额
+		if (Number(bond['f241']) && Number(bond['f2'])) {
+			bond.balance = (Number(bond['f241']) - Number(bond['f2'])).toFixed(2)
+			balance.push(bond);
+		}
+		if(bond['f243'] == now) {
+			today.push(bond['f14'])
 			continue;
 		}
+		if(bond['f243'] < now  &&  bond['f26'] < now) {
+			continue;
+		}
+		
 		var data = []
-		//  上市日期或者 申购日期 大于现在时间
-		var now = dateFormat("YYYYmmdd", new Date())
 		for (var j = 0; j < bondTitles.length; j++) {
 			var bondTitle  = bondTitles[j]
 			data.push(bond[bondTitle.value])
 		}
-		msgs.push(data.join('||||'))
-		console.log(data.join('||||'))
 	}
+	balance.sort(function (a,b) {
+		return b.balance - a.balance
+	})
+	var balanceMsg  = []
+	var length = balance.length > 10 ? 10 : balance.length
+	for (var i = 0; i < length; i++) {
+		 balance[i]
+		 balanceMsg.push(balance[i]['f14'] +'/' + balance[i]['f12']+'/' + balance[i]['balance'])
+	}
+	titleMsgs.push(today.join('-'))
+	msgs.push(balanceMsg.join('--'))
+	msgs.push(titles.join('||'))
+	msgs.push(data.join('||'))
+	console.log(data.join('||'))
 }
 
 function sendMsg() {
@@ -121,7 +151,7 @@ function sendMsg() {
 	for (var i = 0; i < msgs.length; i++) {
 		msg += msgs[i] + "\n "
 	}
-	$.msg('转债','上市或申购转债时间', msg)
+	$.msg('可转债转债',titleMsgs.join(''), msg)
 }
 
 
