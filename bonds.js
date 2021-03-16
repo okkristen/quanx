@@ -33,7 +33,7 @@ function getURL() {
 	 var URL  = 'http://57.push2.eastmoney.com/api/qt/clist/get?'
 	var URLARR = [];
 	URLARR.push('pn=1')
-	URLARR.push('pz=50')
+	URLARR.push('pz=200')
 	URLARR.push('po=1')
 	URLARR.push('np=1')
 	URLARR.push('ut=bd1d9ddb04089700cf9c27f6f7426281')
