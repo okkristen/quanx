@@ -6,14 +6,6 @@ const $ = new Env('基金');
 const notify = $.isNode() ? require('./sendNotify') : '';
 let msgs = [];
 let titleMsgs = [];
-const City = encodeURIComponent($.getdata('city') || "北京") //可在此处修改城市
-const j = $.getdata('citynum') || "1";
-let reduction = $.getdata('cut') || 'false'; //日志
-let daylys = $.getdata('day_desc') || 'true', //每日天气
-	hourlys = $.getdata('hour_desc') || 'false', //小时预报
-	indexs = $.getdata('index_desc') || 'false'; //生活指数
-fortys = $.getdata('forty_desc') || 'false'; //40天预告
-let Alerts = "";
 
 !(async () => {
 	await bonds();
@@ -33,7 +25,7 @@ function getURL() {
 	 var URL  = 'http://57.push2.eastmoney.com/api/qt/clist/get?'
 	var URLARR = [];
 	URLARR.push('pn=1')
-	URLARR.push('pz=200')
+	URLARR.push('pz=150')
 	URLARR.push('po=1')
 	URLARR.push('np=1')
 	URLARR.push('ut=bd1d9ddb04089700cf9c27f6f7426281')
@@ -75,9 +67,12 @@ function bonds() {
 
 /**
  * @param {Object} bond 转债列表
+ * 沪市可转债开头代码：110/113。
+ * 深市可转债开头代码：主板为127、中小板为128、创业板为123。
  */
 function fomart (bonds) {
 	var bondTitles = []
+	suffix = {'110': 'SH', '113': 'SH', '127': 'SZ', '128': 'SZ' , '123': 'SZ'}
 	// bondTitles.push({title: '序号', value: ''})
 	bondTitles.push({title: '转债代码', value: 'f12'})
 	bondTitles.push({title: '转债名称', value: 'f14'})
@@ -114,6 +109,7 @@ function fomart (bonds) {
 		// 差额
 		if (Number(bond['f241']) && Number(bond['f2'])) {
 			bond.balance = (Number(bond['f241']) - Number(bond['f2'])).toFixed(2)
+			bond.suffix = suffix[bond['f12'].substring(0,3)]
 			balance.push(bond);
 		}
 		if(bond['f243'] == now) {
@@ -134,10 +130,11 @@ function fomart (bonds) {
 		return b.balance - a.balance
 	})
 	var balanceMsg  = []
-	var length = balance.length > 10 ? 10 : balance.length
+	// var length = balance.length > 10 ? 10 : balance.length
+	 var length = balance.length
 	for (var i = 0; i < length; i++) {
-		 balance[i]
-		 balanceMsg.push(balance[i]['f14'] +'/' + balance[i]['f12']+'/' + balance[i]['balance'])
+		if(balance[i]['suffix'] === 'SH' && balanceMsg.length <= 10)
+		 balanceMsg.push(balance[i]['f14'] +'/' + balance[i]['f12'] + '/' + balance[i]['suffix'] +'/' + balance[i]['balance'])
 	}
 	titleMsgs.push(today.join('-'))
 	msgs.push(balanceMsg.join('--'))
@@ -175,295 +172,6 @@ function dateFormat(fmt, date) {
     return fmt;
 } 
 
-function Weather() {
-	return new Promise((resolve, reject) => {
-		let weatherurl = {
-			url: `https://co.moji.com/api/weather2/weather?lang=zh&city=${cityid}`
-		}
-		$.get(weatherurl, (error, response, data) => {
-			try {
-				$.weather = JSON.parse(data);
-			} catch (e) {
-				$.logErr(e, resp);
-			} finally {
-				resolve()
-			}
-		})
-	})
-}
-
-function fortyReport() {
-	return new Promise((resolve, reject) => {
-		let fortyurl = {
-			url: `https://h5ctywhr.api.moji.com/fc40`,
-			headers: {
-				'Host': 'h5ctywhr.api.moji.com',
-			},
-			body: `{"cityId": ${cityid},"cityType":${cityType}}`
-		}
-		$.post(fortyurl, (error, response, data) => {
-			try {
-				$.forty = JSON.parse(data)
-				realFeel = $.forty.condition.realFeel,
-					forDay40 = $.forty.forecastDays.forecastDay40.fallTrendDesc[0] ? $.forty.forecastDays.forecastDay40.fallTrendDesc[
-						0].desc : "",
-					temp40 = $.forty.forecastDays.forecastDay40.tempTrendDesc[0] ? $.forty.forecastDays.forecastDay40.tempTrendDesc[
-						0].desc : "",
-					Festival = $.forty.forecastDays.forecastDay[1].festival
-			} catch (e) {
-				$.logErr(e, resp);
-			} finally {
-				resolve()
-			}
-		})
-	})
-}
-
-function Indexs() {
-	return new Promise((resolve, reject) => {
-		let indexsurl = {
-			url: `https://h5ctywhr.api.moji.com/indexDetail?cityId=${cityid}`,
-			headers: {},
-			body: `{"cityId": ${cityid},"cityType":${cityType}}`
-		}
-		$.post(indexsurl, (error, response, data) => {
-			try {
-				$.index = JSON.parse(data);
-			} catch (e) {
-				$.logErr(e, resp);
-			} finally {
-				resolve()
-			}
-		})
-	})
-}
-
-function SearchCity() {
-	return new Promise((resolve) => {
-		let cityurl = {
-			url: `https://ssch.api.moji.com/citymanage/json/h5/searchCity?keyWord=${City}`,
-			headers: {},
-		}
-		$.post(cityurl, (error, response, data) => {
-			let result = JSON.parse(data)
-			if (result.city_list.length > 0 && j <= result.city_list.length) {
-				console.log("城市或者地区名称及ID序号")
-				for (i = 0; i < result.city_list.length; i++) {
-					cityname = (i + 1) + ": " + result.city_list[i].name
-					cityids = result.city_list[i].cityId
-					Province = result.city_list[i].pname
-					console.log(cityname + ': ' + cityids)
-				}
-				cityid = result.city_list[j - 1].cityId
-				cityType = result.city_list[j - 1].cityType
-				cityname = result.city_list[j - 1].name
-				province = result.city_list[j - 1].pname
-			} else {
-				$.msg($.name, "地区有误或者无此地区天气情况")
-				return
-			}
-			resolve()
-		})
-	})
-}
-
-function mapSkycon(skycon) {
-	const map = {
-		"晴": [
-			"☀️ 晴朗",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/CLEAR_DAY.gif",
-		],
-		"多云": [
-			"⛅️ 多云",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/PARTLY_CLOUDY_DAY.gif",
-		],
-		"阴": [
-			"☁️ 阴天",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/CLOUDY.gif",
-		],
-		"雾": [
-			"😤 雾霾",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/HAZE.gif",
-		],
-		"雷阵雨": [
-			"⛈ 雷阵雨",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/STORM_RAIN.gif",
-		],
-		"阵雨": [
-			"🌦 阵雨",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/LIGHT.gif",
-		],
-		"小雨": [
-			"💧 小雨",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/LIGHT.gif",
-		],
-		"中雨": [
-			"💦 中雨",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/MODERATE_RAIN.gif",
-		],
-		"大雨": [
-			"🌧 大雨",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/STORM_RAIN.gif",
-		],
-		"暴雨": [
-			"⛈ 暴雨",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/STORM_RAIN.gif",
-		],
-		"小雪": [
-			"🌨 小雪",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/LIGHT_SNOW.gif",
-		],
-		"中雪": [
-			"❄️ 中雪",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/MODERATE_SNOW.gif",
-		],
-		"大雪": [
-			"☃️ 大雪",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/HEAVY_SNOW.gif",
-		],
-		"暴雪": [
-			"⛄️暴雪",
-			"https://raw.githubusercontent.com/58xinian/icon/master/Weather/HEAVY_SNOW.gif",
-		],
-		"雨夹雪": [
-			"🌨雨夹雪",
-			"https://raw.githubusercontent.com/Sunert/Profiles/master/QuantumultX/Rules/Images/icon/RAIN_SNOW.png",
-		],
-		//FOG: ["🌫️ 雾"],
-		//DUST: ["💨 浮尘"],
-		//SAND: ["💨 沙尘"],
-		//WIND: ["🌪 大风"],
-	};
-	return map[skycon];
-}
-
-function windSpeed(speed) {
-	const map = {
-		0: "无风",
-		1: "软风",
-		2: "轻风",
-		3: "微风",
-		4: "和风",
-		5: "劲风",
-		6: "强风",
-		7: "疾风",
-		8: "大风",
-		9: "烈风",
-		10: "狂风",
-		11: "暴风",
-		12: "飓风"
-	}
-	const wind_desc = $.weather.data.wind_desc.value
-	return `${map[wind_desc[0]]}`
-}
-
-function HourlyReport() {
-	const Hourlyweather = $.weather.data.hourly
-	for (i = 0; i < 6; i++) {
-		hours = Hourlyweather[i].temperature.hour,
-			hourweather = Hourlyweather[i].temperature.condition,
-			hourly_Skycon = mapSkycon(hourweather) ? mapSkycon(hourweather)[0] : "   " + hourweather,
-			hourWinds = Hourlyweather[i].wind.wind_desc.winddir + Hourlyweather[i].wind.wind_desc.value + Hourlyweather[i].wind.wind_desc
-			.unit,
-			hourtemps = Hourlyweather[i].temperature.temp.value + Hourlyweather[i].temperature.temp.unit;
-		if (hourlys == 'true' && i == 0) {
-			$.desc += "   " + hours + ":00  " + hourly_Skycon + "  " + hourtemps + "  " + hourWinds + "\n"
-		} else if (hourlys == 'true' && (hourweather != Hourlyweather[i - 1].temperature.condition || hourtemps !=
-				Hourlyweather[i - 1].temperature.temp.value + "℃")) {
-			$.desc += "   " + hours + ":00  " + hourly_Skycon + "  " + hourtemps + "  " + hourWinds + "\n"
-		}
-		if (reduction == 'true') {
-			$.log("    " + hours + ":00  " + hourweather + "  " + hourtemps + "  " + hourWinds)
-		}
-	}
-}
-
-function WeekReport() {
-	for (Dayweather of $.weather.data.forecast_day) {
-		week = Dayweather.predict_week, // 日期     
-			date = Dayweather.predict_date,
-
-			Daysweather = Dayweather.weather_desc_day, //当日天气
-			Days_Skycon = mapSkycon(Daysweather) ? mapSkycon(Daysweather)[0] : "   " + Daysweather,
-			Winds = Dayweather.wind_desc_day.winddir + Dayweather.wind_desc_day.value + Dayweather.wind_desc_day.unit, //当日风速
-			temps = Dayweather.temp_low.value + Dayweather.temp_low.unit + "至" + Dayweather.temp_high.value + Dayweather.temp_high
-			.unit; //当日温度
-		if (reduction == 'true') {
-			$.log(" " + date + " " + Daysweather + " " + temps + " " + Winds)
-		}
-		$.desc += "   " + week + " " + Days_Skycon + " " + temps + " " + Winds + "\n"
-	}
-}
-
-function IndexReport() {
-	for (indexdata of $.index.indexs) {
-		indexType = indexdata.indexType
-		indexLevel = indexdata.indexLevel
-		indexLevelDesc = indexdata.indexLevelDesc
-		indexDesc = indexdata.indexDesc
-		if (indexs == 'true') {
-			$.desc += "   " + indexType + ":  " + indexLevel + "级   " + indexLevelDesc + "\n"
-		}
-		if (reduction == 'true') {
-			console.log("\n " + indexType + "  " + indexLevel + "级  " + indexLevelDesc + "\n" + indexDesc)
-		}
-	}
-}
-
-function TodayReport() {
-	console.log("您的地区为〈" + $.weather.data.city + "〉")
-	nowweather = $.weather.data.weather_desc //当前天气
-	today_Skycon = mapSkycon(nowweather) ? mapSkycon(nowweather)[0] : "   " + nowweather
-	nowtemp = $.weather.data.temp.value + $.weather.data.temp.unit //当前温度
-	windDirection = $.weather.data.wind_desc.winddir
-	nowwindval = $.weather.data.wind_desc.value //当前风速
-	nowhum = $.weather.data.humidity //当前湿度
-	aqidesc = $.weather.data.aqi_desc //空气质量
-	sunrise = $.weather.data.sunset.sunrise
-	sundown = $.weather.data.sunset.sundown
-	daytemp = $.weather.data.forecast_day[0].temp_low.value + "℃" + "-" + $.weather.data.forecast_day[0].temp_high.value +
-		"℃"
-	if ($.weather.data.alerts.length > 0) {
-		Alerts = '\n【气象预警】' + "预警级别: " + $.weather.data.alerts[0].level + '\n   ' + $.weather.data.alerts[0].content
-	}
-	$.desc = "   当天温度: " + daytemp + "   实时温度🌡:" + nowtemp + "\n  " + ` 实时天气: ${today_Skycon}` + "   风速🌪: " +
-		windDirection + nowwindval + "级" + windSpeed(nowwindval) + "\n   空气质量🌬: " + aqidesc + "    湿度☔️: " + nowhum + Alerts +
-		'\n'
-}
-
-async function showmsg() {
-	if (daylys == 'true') {
-		$.desc += "【每周天气】\n"
-		await WeekReport()
-	}
-	if (hourlys == 'true') {
-		$.desc += "【未来6小时变化预报】\n"
-		await HourlyReport()
-	}
-	if (indexs == 'true') {
-		$.desc += "【生活指数】\n"
-		await Indexs();
-		await IndexReport()
-	}
-	if (fortys == 'true') {
-		$.desc += "【40天预告】\n  " + forDay40 + temp40
-	}
-	$.sub = "【今日天气】" + `${mapSkycon(nowweather)[0]}`
-	$.msg($.weather.data.city + "天气预报 " + $.weather.data.forecast_day[0].predict_date + $.weather.data.forecast_day[0].predict_week +
-		" " + Festival, $.sub, $.desc, {
-			"media-url": `${mapSkycon(nowweather)[1]}`
-		})
-		
-		
-		
-		
-		
-		
-	if ($.isNode()) {
-		await notify.sendNotify($.weather.data.city + "天气预报 " + $.weather.data.forecast_day[0].predict_date + $.weather.data
-			.forecast_day[0].predict_week + " " + Festival, $.sub + "\n" + $.desc)
-	}
-}
 
 function Env(t, e) {
 	class s {
