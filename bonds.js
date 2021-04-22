@@ -133,7 +133,7 @@ function fomart (bonds) {
 	// var length = balance.length > 10 ? 10 : balance.length
 	 var length = balance.length
 	for (var i = 0; i < length; i++) {
-		if(balance[i]['suffix'] === 'SH' && balanceMsg.length <= 10)
+		if(balanceMsg.length <= 10)
 		 balanceMsg.push(balance[i]['f14'] +'/' + balance[i]['f12'] + '/' + balance[i]['suffix'] +'/' + balance[i]['balance'])
 	}
 	titleMsgs.push(today.join('-'))
